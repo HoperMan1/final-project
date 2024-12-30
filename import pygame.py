@@ -1,4 +1,6 @@
 import pygame
+import random
+
 
 pygame.init()
 
@@ -7,20 +9,69 @@ clock = pygame.time.Clock()
 fps = 60
 
 # Game window dimensions
+bottom_panel = 150
 screen_width = 1000
-screen_height = 600
+screen_height = 450 + bottom_panel
 
 # Create game window
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Battle')
 
+#def fonts
+font = pygame.font.SysFont('Arial', 26)
+
+
+
+#def game variables
+current_fighter = 1
+total_fighters = 3
+action_cooldown = 0
+action_wait_time = 90
+
+
+
+
+
+
+
+
+#def colors
+red = (255, 0 ,0)
+green = (0, 255 ,0)
+
+
+
 # Load and scale background image to match screen size 
 background_img = pygame.image.load('game/Background.jpg').convert_alpha()
 background_img = pygame.transform.scale(background_img, (screen_width, screen_height))
+panel_img = pygame.image.load('game/icons/panel.png').convert_alpha()
+
+
+#create function for drawing text
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+    
+
+
 
 # Function to draw the background
 def draw_bg():
     screen.blit(background_img, (0, 0))
+    
+    
+    
+
+
+def draw_panel():
+	#draw panel rectangle
+	screen.blit(panel_img, (135, 500))
+	#show knight stats
+	draw_text(f'{knight.name} HP: {knight.hp}', font, red, 100, screen_height - bottom_panel + 30)
+	for count, i in enumerate(enemy_list):
+		#show name and health
+		draw_text(f'{i.name} HP: {i.hp}', font, red, 550, (screen_height - bottom_panel + 10) + count * 30)
+
 
 # Fighter class
 class Fighter():
@@ -69,16 +120,38 @@ class Fighter():
         if self.frame_index >= len(self.animation_list[self.action]):
             self.frame_index = 0
 
+    def attack(self, target):
+        #deal damage
+        rand = random.randint(-5, 5)
+        damage = self.strength + rand
+        target.hp -= damage
+    
+    
     def draw(self):
         screen.blit(self.image, self.rect)
 
 
-knight = Fighter(200, 300, 'knight', 30, 10, 3)
-enemy1 = Fighter(550, 320, 'enemy', 20, 6, 1)
-enemy2 = Fighter(700, 320, 'enemy', 20, 6, 1)
-enemy3 = Fighter(850, 320, 'enemy', 20, 6, 1)
+class healthbar():
+    def __init__(self, x, y, hp, max_hp):
+        self.x = x
+        self.y = y
+        self.hp = hp
+        self.max_hp = max_hp
+        
+    def draw(self, hp):
+        pygame.draw.rect(screen, red, (self.x, self.y, 50, 10))
 
-enemy_list = [enemy1, enemy2, enemy3]
+
+knight = Fighter(200, 300, 'knight', 30, 10, 3)
+enemy1 = Fighter(650, 420, 'enemy', 20, 6, 1)
+enemy2 = Fighter(800, 420, 'enemy', 20, 6, 1)
+
+enemy_list = [enemy1, enemy2]
+
+
+knight_health_bar = healthbar(100, screen_height - bottom_panel + 60, knight.hp, knight.max_hp)
+enemy2_health_bar = healthbar(100, screen_height - bottom_panel + 100, enemy2.hp, enemy2.max_hp)
+enemy1_health_bar = healthbar(100, screen_height - bottom_panel + 40, enemy1.hp, enemy1.max_hp)
 
 # Add movement and physics variables
 gravity = 1
@@ -151,32 +224,16 @@ def handle_mouse_click():
 run = True
 while run:
     clock.tick(fps)
-
     # Event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_q:
-                run = False
-            elif event.key == pygame.K_LEFT:
-                knight_dx = -knight_speed
-            elif event.key == pygame.K_RIGHT:
-                knight_dx = knight_speed
-            elif event.key == pygame.K_SPACE and not knight_jump and knight.rect.y + knight.rect.height >= floor_y:
-                knight_jump = True
-                knight_dy = knight_jump_force
-            elif event.key == pygame.K_ESCAPE:  # Toggle pause when Escape is pressed
-                paused = not paused
-                menu_option = 0  # Reset menu option to "Continue" when pausing
-
-        elif event.type == pygame.KEYUP:
-            if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                knight_dx = 0
-
         # Handle input during the pause menu
         if paused:
             handle_pause_menu_input(event)
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:  # ESC to pause/unpause
+                paused = not paused  # Toggle the pause state
 
         # Handle mouse click during the pause menu
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -189,7 +246,10 @@ while run:
     else:
         # Draw background
         draw_bg()
-
+        draw_panel()
+        #knight_health_bar.draw(knight.hp)
+        #enemy1_health_bar.draw(enemy1.hp)
+        #enemy2_health_bar.draw(enemy2.hp)
         # Gravity for knight
         if knight.rect.y + knight.rect.height < floor_y:  # Check if the knight is above the floor
             knight_dy += gravity  # Apply gravity
@@ -214,7 +274,15 @@ while run:
 
             enemy.update()
             enemy.draw()
-
+        if knight.alive == True:
+            if current_fighter == 1:
+                action_cooldown == 1
+                if action_cooldown >= action_wait_time:
+                    #look for player action
+                    #attack
+                    knight.attack(enemy1)
+                    current_fighter += 1
+                    action_cooldown
     # Update display
     pygame.display.update()
 
