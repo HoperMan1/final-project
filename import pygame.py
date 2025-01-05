@@ -276,7 +276,7 @@ while run:
             enemy.draw()
         if knight.alive == True:
             if current_fighter == 1:
-                action_cooldown == 1
+                action_cooldown += 1
                 if action_cooldown >= action_wait_time:
                     #look for player action
                     #attack
