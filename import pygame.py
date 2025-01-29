@@ -1,81 +1,109 @@
-import pygame
-import random
+"""
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    FATEBOUND: LEGACY OF HEROES
+                A world brought to life by:
+                    - BDP
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""
 
+
+import pygame 
+import random
+import button
 
 pygame.init()
+pygame.mixer.init()
+
+pygame.mixer.music.load('game/Background.mp3')
+
+pygame.mixer.music.set_volume(0.5) 
+pygame.mixer.music.play(-1) 
+
+
+death_sound = pygame.mixer.Sound('game/death.mp3')
+death_sound.set_volume(0.7) 
+
+sword_sound = pygame.mixer.Sound('game/sword.mp3') 
+
+victory_sound = pygame.mixer.Sound('game/victory.mp3')
 
 clock = pygame.time.Clock()
 
 fps = 60
 
-# Game window dimensions
+#game window
 bottom_panel = 150
-screen_width = 1000
-screen_height = 450 + bottom_panel
+screen_width = 800
+screen_height = 400 + bottom_panel
 
-# Create game window
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Battle')
 
-#def fonts
-font = pygame.font.SysFont('Arial', 26)
 
-
-
-#def game variables
+#define game variables
 current_fighter = 1
 total_fighters = 3
 action_cooldown = 0
 action_wait_time = 90
+attack = False
+potion = False
+clicked = False
+potion_effect = 15
+game_over = 0
 
+#define fonts
+font = pygame.font.SysFont('Times New Roman', 26)
 
+#define colours
+red = (255, 0, 0)
+green = (0, 255, 0)
 
-
-
-
-
-
-#def colors
-red = (255, 0 ,0)
-green = (0, 255 ,0)
-
-
-
-# Load and scale background image to match screen size 
-background_img = pygame.image.load('game/Background.jpg').convert_alpha()
-background_img = pygame.transform.scale(background_img, (screen_width, screen_height))
+#load images
+#background image
+background_img = pygame.image.load('Background.jpg').convert_alpha()
+#panel image
 panel_img = pygame.image.load('game/icons/panel.png').convert_alpha()
 
+restart_img = pygame.image.load('game/icons/restart.png').convert_alpha()
+
+victory_img = pygame.image.load('game/icons/victory.png').convert_alpha()
+
+defeat_img = pygame.image.load('game/icons/defeat.png').convert_alpha()
+
+#sword image
+sword_img = pygame.image.load('game/icons/sword.png').convert_alpha()
+#button
+potion_img = pygame.image.load('game/icons/potion.png').convert_alpha()
+
+dmgboost_img = pygame.image.load('game/icons/damage.png').convert_alpha()
 
 #create function for drawing text
 def draw_text(text, font, text_col, x, y):
     img = font.render(text, True, text_col)
     screen.blit(img, (x, y))
-    
 
 
-
-# Function to draw the background
+#function for drawing background
 def draw_bg():
     screen.blit(background_img, (0, 0))
-    
-    
-    
 
 
+#function for drawing panel
 def draw_panel():
-	#draw panel rectangle
-	screen.blit(panel_img, (135, 500))
-	#show knight stats
-	draw_text(f'{knight.name} HP: {knight.hp}', font, red, 100, screen_height - bottom_panel + 30)
-	for count, i in enumerate(enemy_list):
-		#show name and health
-		draw_text(f'{i.name} HP: {i.hp}', font, red, 550, (screen_height - bottom_panel + 10) + count * 30)
+    # draw panel rectangle
+    screen.blit(panel_img, (0, screen_height - bottom_panel))
+    # show knight stats
+    draw_text(f'{knight.name} HP: {knight.hp}', font, red, 100, screen_height - bottom_panel + 10)
+    for count, i in enumerate(enemy_list):
+        # show name and health
+        draw_text(f'{i.name} HP: {i.hp}', font, red, 550, (screen_height - bottom_panel + 10) + count * 60)
 
 
-# Fighter class
+
+
+#fighter class
 class Fighter():
-    def __init__(self, x, y, name, max_hp, strength, potions):
+    def __init__(self, x, y, name, max_hp, strength, potions, dmgboosts):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
@@ -83,208 +111,376 @@ class Fighter():
         self.start_potions = potions
         self.potions = potions
         self.alive = True
+        self.dmgboost = dmgboosts
+        self.damage_boosts = dmgboosts
         self.animation_list = []
         self.frame_index = 0
-        self.action = 0  # 0: idle, 1: attack, 2: hurt, 3: dead
+        self.action = 0#0:idle, 1:attack, 2:hurt, 3:dead
         self.update_time = pygame.time.get_ticks()
-        # Load idle images
+        #load idle images
         temp_list = []
         for i in range(8):
             img = pygame.image.load(f'game/{self.name}/idle/{i}.png')
-            img = self.image = pygame.transform.scale(img, (img.get_width() * 5, img.get_height() * 5))
+            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
             temp_list.append(img)
         self.animation_list.append(temp_list)
-
-        # Load attack images
+        #load attack images
         temp_list = []
         for i in range(8):
             img = pygame.image.load(f'game/{self.name}/attack/{i}.png')
-            img = self.image = pygame.transform.scale(img, (img.get_width() * 5, img.get_height() * 5))
+            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
             temp_list.append(img)
-
         self.animation_list.append(temp_list)
+        #load HURT images
+        temp_list = []
+        for i in range(3):
+            img = pygame.image.load(f'game/{self.name}/hurt/{i}.png')
+            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+
+
+
+                #load death images
+        temp_list = []
+        for i in range(10):
+            img = pygame.image.load(f'game/{self.name}/death/{i}.png')
+            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
+            temp_list.append(img)
+        self.animation_list.append(temp_list)
+
+
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
+
     def update(self):
         animation_cooldown = 100
-        # Handle animation
-        # Update image
+        #handle animation
+        #update image
         self.image = self.animation_list[self.action][self.frame_index]
-        # Check if enough time passed since the last update
+        #check if enough time has passed since the last update
         if pygame.time.get_ticks() - self.update_time > animation_cooldown:
             self.update_time = pygame.time.get_ticks()
             self.frame_index += 1
-        # If the animation has run out then reset back to start
+        #if the animation has run out then reset back to the start
         if self.frame_index >= len(self.animation_list[self.action]):
-            self.frame_index = 0
+            if self.action == 3:
+                self.frame_index = len(self.animation_list[self.action]) - 1
+            else:
+                self.idle()
+
+
+    def idle(self):
+        #set variables to idle animation
+        self.action = 0
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
 
     def attack(self, target):
-        #deal damage
+        if sword_sound:
+            sword_sound.set_volume(0.7)  # Adjust volume (optional)
+            sword_sound.play()
+
+        #deal damage to enemy
         rand = random.randint(-5, 5)
         damage = self.strength + rand
         target.hp -= damage
-    
-    
+        #run enemy hurt animation:
+        target.hurt()
+        #check if target has died
+        if target.hp < 1:
+            target.hp = 0
+            target.alive = False
+            target.death()
+        damage_text = DamageText(target.rect.centerx, target.rect.y, str(damage), red)
+        damage_text_group.add(damage_text)
+        #set variables to attack animation
+        self.action = 1
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
+
+
+    def hurt(self):
+        #set variables to hurt animation
+        self.action = 2
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
+
+    def death(self):
+        if self.alive == False:  # Check if the character is alive before setting them as dead
+            death_sound.play()  # Play the death sound only once
+        #set variables to death animation
+        self.action = 3
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
+    def reset (self):
+        self.alive = True
+        self.potions = self.start_potions
+        self.hp = self.max_hp
+        self.frame_index = 0
+        self.action = 0
+        self.update_time = pygame.time.get_ticks()
+
+
     def draw(self):
         screen.blit(self.image, self.rect)
 
 
-class healthbar():
+
+class HealthBar():
     def __init__(self, x, y, hp, max_hp):
         self.x = x
         self.y = y
         self.hp = hp
         self.max_hp = max_hp
-        
+
+
     def draw(self, hp):
-        pygame.draw.rect(screen, red, (self.x, self.y, 50, 10))
+        #update with new health
+        self.hp = hp
+        #calculate health ratio
+        ratio = self.hp / self.max_hp
+        pygame.draw.rect(screen, red, (self.x, self.y, 150, 20))
+        pygame.draw.rect(screen, green, (self.x, self.y, 150 * ratio, 20))
 
 
-knight = Fighter(200, 300, 'knight', 30, 10, 3)
-enemy1 = Fighter(650, 420, 'enemy', 20, 6, 1)
-enemy2 = Fighter(800, 420, 'enemy', 20, 6, 1)
+class DamageText(pygame.sprite.Sprite):
+    def __init__(self, x, y, damage, colour):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = font.render(damage, True, colour)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.counter = 0
 
-enemy_list = [enemy1, enemy2]
+    def update(self):
+        #move damage text up
+        self.rect.y -= 1
+        #delete the text after a some time
+        self.counter += 1
+        if self.counter > 30:
+            self.kill()
 
 
-knight_health_bar = healthbar(100, screen_height - bottom_panel + 60, knight.hp, knight.max_hp)
-enemy2_health_bar = healthbar(100, screen_height - bottom_panel + 100, enemy2.hp, enemy2.max_hp)
-enemy1_health_bar = healthbar(100, screen_height - bottom_panel + 40, enemy1.hp, enemy1.max_hp)
 
-# Add movement and physics variables
-gravity = 1
-floor_y = 500  # Y position of the "floor"
-knight_speed = 5
-knight_dx, knight_dy = 0, 0
-knight_jump = False
-knight_jump_force = -15
 
-# Game state variables
-paused = False
-menu_option = 0  # 0: Continue, 1: Exit
 
-# Font setup for rendering text
-font = pygame.font.SysFont('Arial', 72)
-small_font = pygame.font.SysFont('Arial', 36)
+damage_text_group = pygame.sprite.Group()
 
-def draw_pause_menu():
-    screen.fill((0, 0, 0, 150))  # Semi-transparent black overlay
-    text = font.render("PAUSED", True, (255, 255, 255))
-    text_rect = text.get_rect(center=(screen_width // 2, screen_height // 4))
-    screen.blit(text, text_rect)
+knight = Fighter(200, 330, 'Knight', 40, 10, 3, 3)
+enemy1 = Fighter(550, 340, 'enemy', 20, 6, 1, 0)
+enemy2 = Fighter(700, 340, 'enemy', 20, 6, 1, 0)
 
-    # Draw menu options
-    continue_text = small_font.render("Continue", True, (255, 255, 255))
-    continue_rect = continue_text.get_rect(center=(screen_width // 2, screen_height // 2))
-    screen.blit(continue_text, continue_rect)
+enemy_list = []
+enemy_list.append(enemy1)
+enemy_list.append(enemy2)
 
-    exit_text = small_font.render("Exit", True, (255, 255, 255))
-    exit_rect = exit_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
-    screen.blit(exit_text, exit_rect)
+knight_health_bar = HealthBar(100, screen_height - bottom_panel + 40, knight.hp, knight.max_hp)
+enemy1_health_bar = HealthBar(550, screen_height - bottom_panel + 40, enemy1.hp, enemy1.max_hp)
+enemy2_health_bar = HealthBar(550, screen_height - bottom_panel + 100, enemy2.hp, enemy2.max_hp)
 
-    # Highlight the selected option
-    if menu_option == 0:
-        pygame.draw.rect(screen, (255, 0, 0), continue_rect.inflate(10, 10), 3)
-    else:
-        pygame.draw.rect(screen, (255, 0, 0), exit_rect.inflate(10, 10), 3)
+#create buttons
+potion_button = button.Button(screen, 100, screen_height - bottom_panel +70, potion_img, 64, 64)
 
-    return continue_rect, exit_rect
+dmgboost_button = button.Button(screen, 250, screen_height - bottom_panel + 70, dmgboost_img, 64, 64)
 
-def handle_pause_menu_input(event):
-    global menu_option, paused, run
+restart_button = button.Button(screen, 330, 120, restart_img, 120, 30)
 
-    if event.type == pygame.KEYDOWN:
-        if event.key == pygame.K_UP:
-            menu_option = 0  # Select "Continue"
-        elif event.key == pygame.K_DOWN:
-            menu_option = 1  # Select "Exit"
-        elif event.key == pygame.K_RETURN:  # Press Enter
-            if menu_option == 0:
-                paused = False  # Continue the game
-            elif menu_option == 1:
-                run = False  # Exit the game
-
-def handle_mouse_click():
-    global paused, run
-
-    mouse_x, mouse_y = pygame.mouse.get_pos()
-    continue_rect, exit_rect = draw_pause_menu()  # Get the position of buttons
-
-    # Check if the mouse click is within the "Continue" button
-    if continue_rect.collidepoint(mouse_x, mouse_y):
-        paused = False  # Continue the game
-
-    # Check if the mouse click is within the "Exit" button
-    elif exit_rect.collidepoint(mouse_x, mouse_y):
-        run = False  # Exit the game
-
-# Main game loop
 run = True
 while run:
+
     clock.tick(fps)
-    # Event handling
+
+    draw_bg()
+
+    #draw panel
+    draw_panel()
+    knight_health_bar.draw(knight.hp)
+    enemy1_health_bar.draw(enemy1.hp)
+    enemy2_health_bar.draw(enemy2.hp)
+
+    #draw fighters
+    knight.update()
+    knight.draw()
+    for enemy in enemy_list:
+        enemy.update()
+        enemy.draw()
+
+    #draw damage text
+    damage_text_group.update()
+    damage_text_group.draw(screen)
+
+    #control player actions
+    #reset action variables
+    #control player actions
+    dmgboost = False
+    attack = False
+    potion = False
+    target = None
+
+    #check for player interactions
+
+
+    #make sure mouse is visible
+    pygame.mouse.set_visible(True)
+    pos = pygame.mouse.get_pos()
+    for count, enemy in enumerate(enemy_list):
+        if enemy.rect.collidepoint(pos):
+            #hide mouse
+            pygame.mouse.set_visible(False)
+            #show sword in place of mouse cursor
+            screen.blit(sword_img, pos)
+            if clicked == True and enemy.alive == True:
+                attack = True
+                target = enemy_list[count]
+        if dmgboost_button.draw():
+            dmgboost = True
+
+        if potion_button.draw():
+            potion = True
+
+    #show amount of potions remaining
+    draw_text(str(knight.potions), font, red, 150, screen_height - bottom_panel + 70)
+    draw_text(str(knight.damage_boosts), font, red, 250, screen_height - bottom_panel + 70) 
+
+    #player action
+    if knight.alive == True:
+        if current_fighter == 1:
+            action_cooldown += 1
+            if action_cooldown >= action_wait_time:
+                #look for player action
+                #attack
+                if attack == True and target != None:
+                    knight.attack(target)
+                    current_fighter += 1
+                    action_cooldown = 0
+                #potion
+                if potion == True:
+                    if knight.potions > 0:
+                        #check if potion will heal player beyond max hp
+                        if knight.max_hp - knight.hp > potion_effect:
+                            heal_amount = potion_effect
+                        else:
+                            heal_amount = knight.max_hp - knight.hp
+                        knight.hp += heal_amount
+                        knight.potions -= 1
+                        damage_text = DamageText(knight.rect.centerx, knight.rect.y, str(heal_amount), green)
+                        damage_text_group.add(damage_text)
+                        current_fighter += 1
+                        action_cooldown = 0
+                if dmgboost == True:
+                    if knight.damage_boosts > 0:  # Check for damage boosts
+                        knight.strength += 10
+                        knight.damage_boosts -= 1  # Reduce the damage boosts count
+                        current_fighter += 1
+                        action_cooldown = 0
+    else:
+        game_over = -1
+
+    if game_over == 0:
+    #player action	if knight.alive == True:
+        if current_fighter == 1:
+            action_cooldown += 1
+            if action_cooldown >= action_wait_time:
+                #look for player action
+                #attack
+                if attack == True and target != None:
+                    knight.attack(target)
+                    current_fighter += 1
+                    action_cooldown = 0
+                #potion
+                if potion == True:
+                    if knight.potions > 0:
+                        #check if the potion would heal the player beyond max health
+                        if knight.max_hp - knight.hp > potion_effect:
+                            heal_amount = potion_effect
+                        else:
+                            heal_amount = knight.max_hp - knight.hp
+                        knight.hp += heal_amount
+                        knight.potions -= 1
+                        damage_text = DamageText(knight.rect.centerx, knight.rect.y, str(heal_amount), green)
+                        damage_text_group.add(damage_text)
+                        current_fighter += 1
+                        action_cooldown = 0
+    else:
+        game_over = -1
+    #enemy action
+    for count, enemy in enumerate(enemy_list):
+        if current_fighter == 2 + count:
+            if enemy.alive == True:
+                action_cooldown += 1
+                if action_cooldown >= action_wait_time:
+                    #check
+                    if (enemy.hp / enemy.max_hp) < 0.5 and enemy.potions > 0:
+                        if enemy.max_hp - enemy.hp > potion_effect:
+                            heal_amount = potion_effect
+                        else:
+                            heal_amount = enemy.max_hp - enemy.hp
+                        enemy.hp += heal_amount
+                        enemy.potions -= 1
+                        damage_text = DamageText(enemy.rect.centerx, enemy.rect.y, str(heal_amount), green)
+                        damage_text_group.add(damage_text)
+                        current_fighter += 1
+                        action_cooldown = 0
+                    #attack
+                    else:
+                        enemy.attack(knight)
+                        current_fighter += 1
+                        action_cooldown = 0
+            else:
+                current_fighter += 1
+
+    #if all fighters have had a turn then reset
+    if current_fighter > total_fighters:
+        current_fighter = 1
+    alive_enemies = 0
+    for enemy in enemy_list:
+        if enemy.alive == True:
+            alive_enemies += 1
+    if alive_enemies == 0:
+        game_over = 1
+        pygame.mixer.music.stop()  # Stop the background music
+        pygame.mixer.music.load('game/victory.mp3')#Load victory music
+        pygame.mixer.music.play(0)
+        victory_music_done = False
+        if not pygame.mixer.music.get_busy():  # If victory music is finished playing
+            victory_music_done = True
+
+# Continue the main game loop, but check if victory music is done.
+    if game_over == 1 and victory_music_done:
+        pygame.mixer.music.stop()  # Stop the victory music
+        pygame.mixer.music.load('game/Background.mp3')  # Reload the background music
+        pygame.mixer.music.play(-1)  # Play background music in a loop
+        victory_music_done = False  # Reset the flag for the next time victory occurs
+
+    #check if game is over
+    if game_over != 0:
+        if game_over == 1:
+            screen.blit(victory_img, (250, 50))
+        if game_over == -1:
+            screen.blit(defeat_img, (290, 50))
+        if restart_button.draw():
+            knight.reset()
+            for enemy in enemy_list:
+                enemy.reset()
+            current_fighter = 1
+            action_cooldown
+            game_over = 0
+
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-        # Handle input during the pause menu
-        if paused:
-            handle_pause_menu_input(event)
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:  # ESC to pause/unpause
-                paused = not paused  # Toggle the pause state
-
-        # Handle mouse click during the pause menu
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if paused:
-                handle_mouse_click()
-
-    if paused:
-        # Draw the pause menu
-        draw_pause_menu()
-    else:
-        # Draw background
-        draw_bg()
-        draw_panel()
-        #knight_health_bar.draw(knight.hp)
-        #enemy1_health_bar.draw(enemy1.hp)
-        #enemy2_health_bar.draw(enemy2.hp)
-        # Gravity for knight
-        if knight.rect.y + knight.rect.height < floor_y:  # Check if the knight is above the floor
-            knight_dy += gravity  # Apply gravity
+            clicked = True
         else:
-            knight_dy = 0  # Stop vertical movement
-            knight.rect.y = floor_y - knight.rect.height  # Correct position to stay on the floor
-            knight_jump = False  # Reset jump when on the floor
+            clicked = False
 
-        # Apply movement
-        knight.rect.x += knight_dx
-        knight.rect.y += knight_dy
-        knight.update()
-        knight.draw()
-
-        # Gravity for enemies (no movement)
-        for enemy in enemy_list:
-            # Apply gravity
-            if enemy.rect.y + enemy.rect.height < floor_y:
-                enemy.rect.y += gravity
-            else:
-                enemy.rect.y = floor_y - enemy.rect.height
-
-            enemy.update()
-            enemy.draw()
-        if knight.alive == True:
-            if current_fighter == 1:
-                action_cooldown += 1
-                if action_cooldown >= action_wait_time:
-                    #look for player action
-                    #attack
-                    knight.attack(enemy1)
-                    current_fighter += 1
-                    action_cooldown
-    # Update display
     pygame.display.update()
 
-# Quit pygame
 pygame.quit()
